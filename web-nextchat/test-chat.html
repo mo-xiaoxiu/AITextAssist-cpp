@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Assistant - 测试版</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            height: 80vh;
+        }
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chat-area {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .conversation-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid #e0e0e0;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .conversation-item:hover {
+            background: #f0f0f0;
+        }
+        .conversation-item.active {
+            background: #007bff;
+            color: white;
+        }
+        .conversation-content {
+            flex: 1;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            opacity: 0.7;
+        }
+        .delete-btn:hover {
+            opacity: 1;
+            background: #c82333;
+        }
+        .conversation-item.active .delete-btn {
+            background: rgba(255,255,255,0.2);
+        }
+        .conversation-item.active .delete-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: 20%;
+        }
+        .message.assistant {
+            background: #f0f0f0;
+            margin-right: 20%;
+        }
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .input-area button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .status {
+            padding: 10px;
+            background: #e9ecef;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h3>对话列表</h3>
+            <div id="conversationList"></div>
+            <button onclick="createNewConversation()" style="width: 100%; margin-top: 10px; padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer;">新建对话</button>
+        </div>
+        
+        <div class="chat-area">
+            <div class="messages" id="messages"></div>
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="输入消息..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="status" id="status">正在初始化...</div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080';
+        let conversations = [];
+        let currentConversationId = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            updateStatus('正在加载对话列表...');
+            await loadConversations();
+            updateStatus('就绪');
+        });
+
+        // 更新状态
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+            console.log('Status:', message);
+        }
+
+        // 加载对话列表
+        async function loadConversations() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/conversations`);
+                if (response.ok) {
+                    const data = await response.json();
+                    conversations = data.conversations || [];
+                    renderConversations();
+                    
+                    if (conversations.length > 0) {
+                        await selectConversation(conversations[0].id);
+                    }
+                } else {
+                    updateStatus('加载对话列表失败');
+                }
+            } catch (error) {
+                updateStatus('连接后端失败: ' + error.message);
+                console.error('Error loading conversations:', error);
+            }
+        }
+
+        // 渲染对话列表
+        function renderConversations() {
+            const list = document.getElementById('conversationList');
+            list.innerHTML = '';
+
+            conversations.forEach(conv => {
+                const item = document.createElement('div');
+                item.className = 'conversation-item';
+                item.dataset.conversationId = conv.id;
+
+                // 创建对话内容区域
+                const content = document.createElement('div');
+                content.className = 'conversation-content';
+                content.textContent = conv.title || '新对话';
+                content.onclick = () => selectConversation(conv.id);
+
+                // 创建删除按钮
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '🗑️';
+                deleteBtn.title = '删除对话';
+                deleteBtn.onclick = (e) => deleteConversation(conv.id, e);
+
+                item.appendChild(content);
+                item.appendChild(deleteBtn);
+
+                if (conv.id === currentConversationId) {
+                    item.classList.add('active');
+                }
+
+                list.appendChild(item);
+            });
+        }
+
+        // 选择对话
+        async function selectConversation(conversationId) {
+            updateStatus(`正在加载对话: ${conversationId.substring(0, 8)}...`);
+            currentConversationId = conversationId;
+            
+            // 更新UI
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const selectedItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+            
+            // 加载消息
+            await loadMessages(conversationId);
+            updateStatus('对话已加载');
+        }
+
+        // 加载消息
+        async function loadMessages(conversationId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/conversations/messages?conversation_id=${conversationId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderMessages(data.messages || []);
+                } else {
+                    updateStatus('加载消息失败');
+                }
+            } catch (error) {
+                updateStatus('加载消息出错: ' + error.message);
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        // 渲染消息
+        function renderMessages(messages) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '';
+            
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.role}`;
+                messageDiv.textContent = msg.content;
+                messagesDiv.appendChild(messageDiv);
+            });
+            
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            input.value = '';
+            updateStatus('正在发送消息...');
+            
+            // 添加用户消息到UI
+            addMessageToUI(message, 'user');
+            
+            try {
+                const requestBody = { message: message };
+                if (currentConversationId) {
+                    requestBody.conversation_id = currentConversationId;
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 更新conversation_id
+                    if (data.conversation_id && data.conversation_id !== currentConversationId) {
+                        currentConversationId = data.conversation_id;
+                        await loadConversations(); // 重新加载对话列表
+                    }
+                    
+                    // 添加AI回复到UI
+                    addMessageToUI(data.response, 'assistant');
+                    updateStatus('消息已发送');
+                } else {
+                    updateStatus('发送消息失败');
+                }
+            } catch (error) {
+                updateStatus('发送消息出错: ' + error.message);
+                console.error('Error sending message:', error);
+            }
+        }
+
+        // 添加消息到UI
+        function addMessageToUI(content, role) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.textContent = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // 创建新对话
+        function createNewConversation() {
+            currentConversationId = null;
+            document.getElementById('messages').innerHTML = '';
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            updateStatus('准备创建新对话');
+        }
+
+        // 删除对话
+        async function deleteConversation(conversationId, event) {
+            event.stopPropagation(); // 阻止事件冒泡
+
+            if (!confirm('确定要删除这个对话吗？此操作无法撤销。')) {
+                return;
+            }
+
+            updateStatus('正在删除对话...');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/conversations`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ conversation_id: conversationId })
+                });
+
+                if (response.ok) {
+                    // 从本地列表中移除
+                    conversations = conversations.filter(c => c.id !== conversationId);
+
+                    // 如果删除的是当前对话，切换到其他对话或创建新对话
+                    if (currentConversationId === conversationId) {
+                        if (conversations.length > 0) {
+                            await selectConversation(conversations[0].id);
+                        } else {
+                            createNewConversation();
+                        }
+                    }
+
+                    renderConversations();
+                    updateStatus('对话已删除');
+                } else {
+                    updateStatus('删除对话失败');
+                    console.error('Failed to delete conversation:', response.status);
+                }
+            } catch (error) {
+                updateStatus('删除对话出错: ' + error.message);
+                console.error('Error deleting conversation:', error);
+            }
+        }
+
+        // 处理回车键
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>

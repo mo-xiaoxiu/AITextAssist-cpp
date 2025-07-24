@@ -1,0 +1,22 @@
+{
+  "llm": {
+    "provider": "openai",
+    "api_endpoint": "https://www.dmxapi.cn/v1/chat/completions",
+    "api_key": "sk-FJZiXGVV4unrpuWm3ycKuxtt0Wl0A01z5TtaVIk03IQ8NLrn",
+    "model_name": "deepseek-chat",
+    "temperature": 0.7,
+    "max_tokens": 1000,
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "prompt": {
+    "system_prompt": "You are a helpful AI text assistant. You provide clear, concise, and accurate responses.",
+    "user_prompt_template": "User: {user_input}\n\nContext: {context}\n\nAssistant:",
+    "context_template": "Previous conversation:\n{history}",
+    "max_history_messages": 10
+  },
+  "database_path": "conversations.db",
+  "log_level": "INFO",
+  "auto_save_conversations": true
+}
