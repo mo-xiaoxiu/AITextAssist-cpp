@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🤖 AI Text Assistant</h1>
+            <div class="status-indicator">
+                <span id="status-dot" class="status-dot"></span>
+                <span id="status-text">连接中...</span>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <div class="message assistant-message">
+                        <div class="message-content" data-byte-size="small">
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-text">
+                                <p>你好！我是AI文本助手，有什么可以帮助你的吗？</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea
+                            id="message-input"
+                            placeholder="输入你的消息（最多8000字符）..."
+                            rows="3"
+                            maxlength="8000"></textarea>
+                        <button id="send-button" class="send-button" disabled>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-info">
+                        <span id="char-count">0/8000</span>
+                        <span class="input-hint">按 Ctrl+Enter 发送</span>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3>对话历史</h3>
+                    <div id="conversation-list" class="conversation-list">
+                        <div class="conversation-item active">
+                            <div class="conversation-title">当前对话</div>
+                            <div class="conversation-time">刚刚</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>系统信息</h3>
+                    <div class="system-info">
+                        <div class="info-item">
+                            <span class="info-label">状态:</span>
+                            <span id="system-status" class="info-value">运行中</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">对话数:</span>
+                            <span id="total-conversations" class="info-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">消息数:</span>
+                            <span id="total-messages" class="info-value">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <button id="new-conversation" class="new-conversation-btn">
+                        ➕ 新建对话
+                    </button>
+                    <button id="clear-chat" class="clear-chat-btn">
+                        🗑️ 清空当前对话
+                    </button>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>AI正在思考中...</p>
+    </div>
+
+    <!-- Error toast -->
+    <div id="error-toast" class="error-toast hidden">
+        <span id="error-message"></span>
+        <button id="close-error" class="close-error">×</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
