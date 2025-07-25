@@ -57,7 +57,7 @@ void ConfigManager::loadDefaultConfig() {
     setDefaultLLMConfig();
     setDefaultPromptConfig();
     
-    app_config_.database_path = "conversations.db";
+    app_config_.database_path = DEFAULT_DATABASE_PATH;
     app_config_.log_level = "INFO";
     app_config_.enable_voice = true;
     app_config_.auto_save_conversations = true;
@@ -86,6 +86,24 @@ bool ConfigManager::validateConfig() const {
            validatePromptConfig(app_config_.prompt);
 }
 
+std::vector<std::string> ConfigManager::getAvailablePromptTemplates() const {
+    std::vector<std::string> templates;
+    for (const auto& [name, _] : prompt_templates_) {
+        templates.push_back(name);
+    }
+    return templates;
+}
+
+bool ConfigManager::loadPromptTemplate(const std::string& template_name) {
+    if (prompt_templates_.find(template_name) == prompt_templates_.end()) {
+        LOG_ERROR("Prompt template not found: " + template_name);
+        return false;
+    }
+
+    app_config_.prompt.system_prompt = prompt_templates_[template_name].system_prompt;
+    return true;
+}
+
 std::string ConfigManager::getDefaultSystemPrompt() const {
     return "You are a helpful AI voice assistant. You provide clear, concise, and accurate responses. "
            "Keep your responses conversational and appropriate for voice interaction.";
@@ -93,36 +111,6 @@ std::string ConfigManager::getDefaultSystemPrompt() const {
 
 std::string ConfigManager::getDefaultUserPromptTemplate() const {
     return "User: {user_input}\n\nContext: {context}\n\nAssistant:";
-}
-
-std::vector<std::string> ConfigManager::getAvailablePromptTemplates() const {
-    return {"default", "creative", "analytical", "casual", "professional"};
-}
-
-bool ConfigManager::loadPromptTemplate(const std::string& template_name) {
-    // Implementation for loading different prompt templates
-    if (template_name == "creative") {
-        app_config_.prompt.system_prompt = 
-            "You are a creative and imaginative AI assistant. Provide engaging, "
-            "innovative responses while maintaining accuracy.";
-    } else if (template_name == "analytical") {
-        app_config_.prompt.system_prompt = 
-            "You are an analytical AI assistant. Provide detailed, logical, "
-            "and well-structured responses with clear reasoning.";
-    } else if (template_name == "casual") {
-        app_config_.prompt.system_prompt = 
-            "You are a friendly and casual AI assistant. Keep responses relaxed "
-            "and conversational, like talking to a friend.";
-    } else if (template_name == "professional") {
-        app_config_.prompt.system_prompt = 
-            "You are a professional AI assistant. Provide formal, precise, "
-            "and business-appropriate responses.";
-    } else {
-        app_config_.prompt.system_prompt = getDefaultSystemPrompt();
-    }
-    
-    LOG_INFO("Loaded prompt template: " + template_name);
-    return true;
 }
 
 std::string ConfigManager::expandTemplate(const std::string& template_str, 
@@ -145,12 +133,12 @@ void ConfigManager::fromJson(const nlohmann::json& j) {
     // Parse LLM config
     if (j.contains("llm")) {
         const auto& llm_json = j["llm"];
-        app_config_.llm.provider = llm_json.value("provider", "openai");
-        app_config_.llm.api_endpoint = llm_json.value("api_endpoint", "");
-        app_config_.llm.api_key = llm_json.value("api_key", "");
-        app_config_.llm.model_name = llm_json.value("model_name", "gpt-3.5-turbo");
-        app_config_.llm.temperature = llm_json.value("temperature", 0.7);
-        app_config_.llm.max_tokens = llm_json.value("max_tokens", 1000);
+        app_config_.llm.provider = llm_json.value("provider", DEFAULT_PROVIDER);
+        app_config_.llm.api_endpoint = llm_json.value("api_endpoint", DEFAULT_API_ENDPOINT);
+        app_config_.llm.api_key = llm_json.value("api_key", DEFAULT_API_KEY);
+        app_config_.llm.model_name = llm_json.value("model_name", DEFAULT_MODEL_NAME);
+        app_config_.llm.temperature = llm_json.value("temperature", DEFAULT_TEMPERATURE);
+        app_config_.llm.max_tokens = llm_json.value("max_tokens", DEFAULT_MAX_TOKENS);
 
         if (llm_json.contains("headers")) {
             app_config_.llm.headers = llm_json["headers"];
@@ -167,7 +155,7 @@ void ConfigManager::fromJson(const nlohmann::json& j) {
     }
 
     // Parse general config
-    app_config_.database_path = j.value("database_path", "conversations.db");
+    app_config_.database_path = j.value("database_path", DEFAULT_DATABASE_PATH);
     app_config_.log_level = j.value("log_level", "INFO");
     app_config_.enable_voice = j.value("enable_voice", true);
     app_config_.auto_save_conversations = j.value("auto_save_conversations", true);
@@ -215,8 +203,8 @@ bool ConfigManager::validateLLMConfig(const LLMConfig& config) const {
         LOG_WARNING("API key is empty - this may cause authentication issues");
     }
 
-    if (config.temperature < 0.0 || config.temperature > 2.0) {
-        LOG_ERROR("Temperature must be between 0.0 and 2.0");
+    if (config.temperature < MIN_TEMPERATURE || config.temperature > MAX_TEMPERATURE) {
+        LOG_ERROR("Temperature must be between " + std::to_string(MIN_TEMPERATURE) + " and " + std::to_string(MAX_TEMPERATURE));
         return false;
     }
 
@@ -242,12 +230,12 @@ bool ConfigManager::validatePromptConfig(const PromptConfig& config) const {
 }
 
 void ConfigManager::setDefaultLLMConfig() {
-    app_config_.llm.provider = "openai";
-    app_config_.llm.api_endpoint = "https://api.openai.com/v1/chat/completions";
-    app_config_.llm.api_key = "";  // User must provide
-    app_config_.llm.model_name = "gpt-3.5-turbo";
-    app_config_.llm.temperature = 0.7;
-    app_config_.llm.max_tokens = 1000;
+    app_config_.llm.provider = DEFAULT_PROVIDER;
+    app_config_.llm.api_endpoint = DEFAULT_API_ENDPOINT;
+    app_config_.llm.api_key = DEFAULT_API_KEY;  // User must provide
+    app_config_.llm.model_name = DEFAULT_MODEL_NAME;
+    app_config_.llm.temperature = DEFAULT_TEMPERATURE;
+    app_config_.llm.max_tokens = DEFAULT_MAX_TOKENS;
     app_config_.llm.headers["Content-Type"] = "application/json";
 }
 
@@ -255,7 +243,7 @@ void ConfigManager::setDefaultPromptConfig() {
     app_config_.prompt.system_prompt = getDefaultSystemPrompt();
     app_config_.prompt.user_prompt_template = getDefaultUserPromptTemplate();
     app_config_.prompt.context_template = "Previous conversation:\n{history}";
-    app_config_.prompt.max_history_messages = 10;
+    app_config_.prompt.max_history_messages = DEFAULT_MAX_HISTORY_LENGTH;
 }
 
 } // namespace AITextAssistant
