@@ -25,12 +25,10 @@ public:
     const AppConfig& getAppConfig() const { return app_config_; }
     const LLMConfig& getLLMConfig() const { return app_config_.llm; }
     const PromptConfig& getPromptConfig() const { return app_config_.prompt; }
-    const AudioConfig& getAudioConfig() const { return app_config_.audio; }
     
     // Setters
     void setLLMConfig(const LLMConfig& config);
     void setPromptConfig(const PromptConfig& config);
-    void setAudioConfig(const AudioConfig& config);
     
     // Validation
     bool validateConfig() const;
@@ -55,12 +53,10 @@ private:
     // Validation helpers
     bool validateLLMConfig(const LLMConfig& config) const;
     bool validatePromptConfig(const PromptConfig& config) const;
-    bool validateAudioConfig(const AudioConfig& config) const;
     
     // Default configurations
     void setDefaultLLMConfig();
     void setDefaultPromptConfig();
-    void setDefaultAudioConfig();
 };
 
 } // namespace AITextAssistant

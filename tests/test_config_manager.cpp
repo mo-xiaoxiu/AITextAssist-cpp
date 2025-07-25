@@ -41,9 +41,6 @@ TEST_F(ConfigManagerTest, DefaultConfigurationLoads) {
     
     EXPECT_FALSE(app_config.prompt.system_prompt.empty());
     EXPECT_GT(app_config.prompt.max_history_messages, 0);
-    
-    EXPECT_GT(app_config.audio.sample_rate, 0);
-    EXPECT_GT(app_config.audio.channels, 0);
 }
 
 TEST_F(ConfigManagerTest, LoadValidConfigFile) {
@@ -65,14 +62,6 @@ TEST_F(ConfigManagerTest, LoadValidConfigFile) {
             "context_template": "Context: {history}",
             "max_history_messages": 5
         },
-        "audio": {
-            "speech_to_text_provider": "whisper",
-            "text_to_speech_provider": "espeak",
-            "input_device": "default",
-            "output_device": "default",
-            "sample_rate": 16000,
-            "channels": 1
-        },
         "database_path": "test.db",
         "log_level": "DEBUG",
         "enable_voice": true,
@@ -89,7 +78,6 @@ TEST_F(ConfigManagerTest, LoadValidConfigFile) {
     EXPECT_EQ(app_config.llm.temperature, 0.7);
     EXPECT_EQ(app_config.prompt.system_prompt, "Test system prompt");
     EXPECT_EQ(app_config.prompt.max_history_messages, 5);
-    EXPECT_EQ(app_config.audio.sample_rate, 16000);
     EXPECT_EQ(app_config.database_path, "test.db");
     EXPECT_EQ(app_config.log_level, "DEBUG");
 }
@@ -185,19 +173,3 @@ TEST_F(ConfigManagerTest, PromptConfigUpdate) {
     EXPECT_EQ(updated_config.max_history_messages, 15);
 }
 
-TEST_F(ConfigManagerTest, AudioConfigUpdate) {
-    AudioConfig new_config;
-    new_config.speech_to_text_provider = "system";
-    new_config.text_to_speech_provider = "system";
-    new_config.input_device = "mic1";
-    new_config.output_device = "speaker1";
-    new_config.sample_rate = 44100;
-    new_config.channels = 2;
-    
-    config_manager->setAudioConfig(new_config);
-    
-    const auto& updated_config = config_manager->getAudioConfig();
-    EXPECT_EQ(updated_config.speech_to_text_provider, "system");
-    EXPECT_EQ(updated_config.sample_rate, 44100);
-    EXPECT_EQ(updated_config.channels, 2);
-}

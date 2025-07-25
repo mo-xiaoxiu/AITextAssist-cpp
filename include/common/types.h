@@ -60,21 +60,10 @@ struct PromptConfig {
     int max_history_messages = 10;
 };
 
-// Audio Configuration
-struct AudioConfig {
-    std::string speech_to_text_provider;
-    std::string text_to_speech_provider;
-    std::string input_device;
-    std::string output_device;
-    int sample_rate = 16000;
-    int channels = 1;
-};
-
 // Application Configuration
 struct AppConfig {
     LLMConfig llm;
     PromptConfig prompt;
-    AudioConfig audio;
     std::string database_path;
     std::string log_level = "INFO";
     bool enable_voice = true;
@@ -88,14 +77,6 @@ struct LLMResponse {
     std::string error_message;
     int status_code = 0;
     std::map<std::string, std::string> metadata;
-};
-
-// Audio data structure
-struct AudioData {
-    std::vector<uint8_t> data;
-    int sample_rate;
-    int channels;
-    double duration;
 };
 
 } // namespace AITextAssistant

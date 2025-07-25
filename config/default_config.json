@@ -2,8 +2,8 @@
   "llm": {
     "provider": "openai",
     "api_endpoint": "https://www.dmxapi.cn/v1/chat/completions",
-    "api_key": "",
-    "model_name": "gpt-4.1",
+    "api_key": "sk-4FxZxc2mSQVFzUek7TKslTaRHTxIZjpxBGGeTXxbiJXcFV51",
+    "model_name": "THUDM/glm-4-9b-chat",
     "temperature": 0.7,
     "max_tokens": 1000,
     "headers": {

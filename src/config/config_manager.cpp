@@ -56,7 +56,6 @@ bool ConfigManager::saveConfig(const std::string& config_file) const {
 void ConfigManager::loadDefaultConfig() {
     setDefaultLLMConfig();
     setDefaultPromptConfig();
-    setDefaultAudioConfig();
     
     app_config_.database_path = "conversations.db";
     app_config_.log_level = "INFO";
@@ -82,19 +81,9 @@ void ConfigManager::setPromptConfig(const PromptConfig& config) {
     }
 }
 
-void ConfigManager::setAudioConfig(const AudioConfig& config) {
-    if (validateAudioConfig(config)) {
-        app_config_.audio = config;
-        LOG_INFO("Audio configuration updated");
-    } else {
-        LOG_ERROR("Invalid audio configuration provided");
-    }
-}
-
 bool ConfigManager::validateConfig() const {
     return validateLLMConfig(app_config_.llm) &&
-           validatePromptConfig(app_config_.prompt) &&
-           validateAudioConfig(app_config_.audio);
+           validatePromptConfig(app_config_.prompt);
 }
 
 std::string ConfigManager::getDefaultSystemPrompt() const {
@@ -177,17 +166,6 @@ void ConfigManager::fromJson(const nlohmann::json& j) {
         app_config_.prompt.max_history_messages = prompt_json.value("max_history_messages", 10);
     }
 
-    // Parse audio config
-    if (j.contains("audio")) {
-        const auto& audio_json = j["audio"];
-        app_config_.audio.speech_to_text_provider = audio_json.value("speech_to_text_provider", "whisper");
-        app_config_.audio.text_to_speech_provider = audio_json.value("text_to_speech_provider", "espeak");
-        app_config_.audio.input_device = audio_json.value("input_device", "default");
-        app_config_.audio.output_device = audio_json.value("output_device", "default");
-        app_config_.audio.sample_rate = audio_json.value("sample_rate", 16000);
-        app_config_.audio.channels = audio_json.value("channels", 1);
-    }
-
     // Parse general config
     app_config_.database_path = j.value("database_path", "conversations.db");
     app_config_.log_level = j.value("log_level", "INFO");
@@ -212,14 +190,6 @@ nlohmann::json ConfigManager::toJson() const {
     j["prompt"]["user_prompt_template"] = app_config_.prompt.user_prompt_template;
     j["prompt"]["context_template"] = app_config_.prompt.context_template;
     j["prompt"]["max_history_messages"] = app_config_.prompt.max_history_messages;
-
-    // Audio config
-    j["audio"]["speech_to_text_provider"] = app_config_.audio.speech_to_text_provider;
-    j["audio"]["text_to_speech_provider"] = app_config_.audio.text_to_speech_provider;
-    j["audio"]["input_device"] = app_config_.audio.input_device;
-    j["audio"]["output_device"] = app_config_.audio.output_device;
-    j["audio"]["sample_rate"] = app_config_.audio.sample_rate;
-    j["audio"]["channels"] = app_config_.audio.channels;
 
     // General config
     j["database_path"] = app_config_.database_path;
@@ -271,20 +241,6 @@ bool ConfigManager::validatePromptConfig(const PromptConfig& config) const {
     return true;
 }
 
-bool ConfigManager::validateAudioConfig(const AudioConfig& config) const {
-    if (config.sample_rate <= 0) {
-        LOG_ERROR("Sample rate must be positive");
-        return false;
-    }
-
-    if (config.channels <= 0) {
-        LOG_ERROR("Number of channels must be positive");
-        return false;
-    }
-
-    return true;
-}
-
 void ConfigManager::setDefaultLLMConfig() {
     app_config_.llm.provider = "openai";
     app_config_.llm.api_endpoint = "https://api.openai.com/v1/chat/completions";
@@ -300,15 +256,6 @@ void ConfigManager::setDefaultPromptConfig() {
     app_config_.prompt.user_prompt_template = getDefaultUserPromptTemplate();
     app_config_.prompt.context_template = "Previous conversation:\n{history}";
     app_config_.prompt.max_history_messages = 10;
-}
-
-void ConfigManager::setDefaultAudioConfig() {
-    app_config_.audio.speech_to_text_provider = "whisper";
-    app_config_.audio.text_to_speech_provider = "espeak";
-    app_config_.audio.input_device = "default";
-    app_config_.audio.output_device = "default";
-    app_config_.audio.sample_rate = 16000;
-    app_config_.audio.channels = 1;
 }
 
 } // namespace AITextAssistant
