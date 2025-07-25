@@ -168,16 +168,45 @@ void HttpServer::serverLoop() {
 }
 
 void HttpServer::handleClient(int client_socket) {
+    std::string request_data;
     char buffer[4096];
-    ssize_t bytes_read = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+    ssize_t bytes_read;
     
-    if (bytes_read <= 0) {
+    // Keep receiving data until we have a complete HTTP request
+    while ((bytes_read = recv(client_socket, buffer, sizeof(buffer) - 1, 0)) > 0) {
+        buffer[bytes_read] = '\0';
+        request_data += std::string(buffer);
+        
+        // Check if we have received the complete HTTP headers (ending with \r\n\r\n)
+        size_t header_end = request_data.find("\r\n\r\n");
+        if (header_end != std::string::npos) {
+            // Parse Content-Length to determine if we need to read more body data
+            size_t content_length = 0;
+            size_t content_length_pos = request_data.find("Content-Length:");
+            if (content_length_pos != std::string::npos) {
+                size_t value_start = request_data.find(":", content_length_pos) + 1;
+                size_t value_end = request_data.find("\r\n", value_start);
+                std::string length_str = request_data.substr(value_start, value_end - value_start);
+                // Trim whitespace
+                length_str.erase(0, length_str.find_first_not_of(" \t"));
+                length_str.erase(length_str.find_last_not_of(" \t") + 1);
+                content_length = std::stoul(length_str);
+            }
+            
+            size_t body_start = header_end + 4;
+            size_t current_body_length = request_data.length() - body_start;
+            
+            // If we have all the body data, break
+            if (current_body_length >= content_length) {
+                break;
+            }
+        }
+    }
+    
+    if (bytes_read < 0 || request_data.empty()) {
         close(client_socket);
         return;
     }
-    
-    buffer[bytes_read] = '\0';
-    std::string request_data(buffer);
     
     HttpRequest request = parseRequest(request_data);
     HttpResponse response = handleRequest(request);
@@ -383,60 +412,11 @@ HttpResponse HttpServer::handleApiChat(const HttpRequest& request) {
         // Process the message through the assistant
         std::string assistant_response = assistant_->processTextInput(message);
 
-        // Split response if it's too long (max 4000 characters per message)
-        const size_t MAX_RESPONSE_LENGTH = 4000;
         nlohmann::json response_json;
         response_json["status"] = "success";
         response_json["conversation_id"] = conversation_id;
-
-        if (assistant_response.length() <= MAX_RESPONSE_LENGTH) {
-            response_json["response"] = assistant_response;
-            response_json["is_split"] = false;
-        } else {
-            // Split the response into multiple parts
-            std::vector<std::string> parts;
-            size_t pos = 0;
-
-            while (pos < assistant_response.length()) {
-                size_t end_pos = pos + MAX_RESPONSE_LENGTH;
-
-                if (end_pos >= assistant_response.length()) {
-                    // Last part
-                    parts.push_back(assistant_response.substr(pos));
-                    break;
-                } else {
-                    // Find a good break point (sentence end, paragraph, or space)
-                    size_t break_pos = end_pos;
-
-                    // Look for sentence endings within the last 200 characters
-                    for (size_t i = end_pos - 200; i < end_pos && i < assistant_response.length(); ++i) {
-                        if (assistant_response[i] == '.' || assistant_response[i] == '!' ||
-                            assistant_response[i] == '?' || assistant_response[i] == '\n') {
-                            if (i + 1 < assistant_response.length() &&
-                                (assistant_response[i + 1] == ' ' || assistant_response[i + 1] == '\n')) {
-                                break_pos = i + 1;
-                            }
-                        }
-                    }
-
-                    // If no good break point found, look for spaces
-                    if (break_pos == end_pos) {
-                        for (size_t i = end_pos - 100; i < end_pos && i < assistant_response.length(); ++i) {
-                            if (assistant_response[i] == ' ') {
-                                break_pos = i + 1;
-                            }
-                        }
-                    }
-
-                    parts.push_back(assistant_response.substr(pos, break_pos - pos));
-                    pos = break_pos;
-                }
-            }
-
-            response_json["response_parts"] = parts;
-            response_json["is_split"] = true;
-            response_json["total_parts"] = parts.size();
-        }
+        response_json["response"] = assistant_response;
+        response_json["is_split"] = false;
 
         response.body = response_json.dump();
 
