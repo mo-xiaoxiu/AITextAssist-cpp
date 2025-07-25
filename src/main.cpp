@@ -166,7 +166,7 @@ void interactiveConfig(TextAssistant& assistant) {
 
 // Web-based interaction mode
 void webMode(TextAssistant& assistant, int port) {
-    std::cout << "\n=== Web Interface Mode ===\n";
+    std::cout << "\n=== Web server Mode ===\n";
     std::cout << "Starting HTTP server on port " << port << "...\n";
 
     // Create HTTP server
@@ -179,7 +179,7 @@ void webMode(TextAssistant& assistant, int port) {
         return;
     }
 
-    std::cout << "Web interface is now available at: http://localhost:" << port << std::endl;
+    std::cout << "Web server is now available at: http://localhost:" << port << std::endl;
     std::cout << "Press Ctrl+C to stop the server\n\n";
 
     // Keep the server running
