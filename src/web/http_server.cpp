@@ -15,43 +15,23 @@ namespace AITextAssistant {
 
 HttpServer::HttpServer(int port) : port_(port), running_(false), server_socket_(-1) {
     // Register default API routes (legacy format)
-    addRoute("POST", "/api/chat", [this](const HttpRequest& req) { return handleApiChat(req); });
-    addRoute("GET", "/api/conversations", [this](const HttpRequest& req) { return handleApiConversations(req); });
-    addRoute("GET", "/api/conversations/messages", [this](const HttpRequest& req) { return handleApiConversationMessages(req); });
-    addRoute("DELETE", "/api/conversations", [this](const HttpRequest& req) { return handleApiDeleteConversation(req); });
-    addRoute("GET", "/api/status", [this](const HttpRequest& req) { return handleApiStatus(req); });
+    std::vector<RouteConfig> defaultRoutes = {
+        {"POST", "/api/chat", std::bind(&HttpServer::handleApiChat, this, std::placeholders::_1)},
+        {"GET", "/api/conversations", std::bind(&HttpServer::handleApiConversations, this, std::placeholders::_1)},
+        {"GET", "/api/conversations/messages", std::bind(&HttpServer::handleApiConversationMessages, this, std::placeholders::_1)},
+        {"DELETE", "/api/conversations", std::bind(&HttpServer::handleApiDeleteConversation, this, std::placeholders::_1)},
+        {"GET", "/api/status", std::bind(&HttpServer::handleApiStatus, this, std::placeholders::_1)},
+        {"POST", "/v1/chat/completions", std::bind(&HttpServer::handleOpenAIChat, this, std::placeholders::_1)},
+        {"GET", "/v1/models", std::bind(&HttpServer::handleOpenAIModels, this, std::placeholders::_1)},
+        {"OPTIONS", "/api/chat", std::bind(&HttpServer::handleResponseOK, this, std::placeholders::_1)},
+        {"OPTIONS", "/api/conversations", std::bind(&HttpServer::handleResponseOK, this, std::placeholders::_1)},
+        {"OPTIONS", "/v1/chat/completions", std::bind(&HttpServer::handleResponseOK, this, std::placeholders::_1)},
+        {"OPTIONS", "/v1/models", std::bind(&HttpServer::handleResponseOK, this, std::placeholders::_1)},
+    };
 
-    // Add OpenAI-compatible API routes
-    addRoute("POST", "/v1/chat/completions", [this](const HttpRequest& req) { return handleOpenAIChat(req); });
-    addRoute("GET", "/v1/models", [this](const HttpRequest& req) { return handleOpenAIModels(req); });
-
-    // CORS preflight requests
-    addRoute("OPTIONS", "/api/chat", [](const HttpRequest&) {
-        HttpResponse response;
-        response.status_code = 200;
-        return response;
-    });
-
-    addRoute("OPTIONS", "/api/conversations", [](const HttpRequest&) {
-        HttpResponse response;
-        response.status_code = 200;
-        return response;
-    });
-    addRoute("OPTIONS", "/api/conversations", [](const HttpRequest&) {
-        HttpResponse response;
-        response.status_code = 200;
-        return response;
-    });
-    addRoute("OPTIONS", "/v1/chat/completions", [](const HttpRequest&) {
-        HttpResponse response;
-        response.status_code = 200;
-        return response;
-    });
-    addRoute("OPTIONS", "/v1/models", [](const HttpRequest&) {
-        HttpResponse response;
-        response.status_code = 200;
-        return response;
-    });
+    for (const auto& route : defaultRoutes) {
+        addRoute(route.method, route.path, route.handler);
+    }
 }
 
 HttpServer::~HttpServer() {
@@ -228,8 +208,7 @@ HttpRequest HttpServer::parseRequest(const std::string& request_data) {
         line_stream >> request.method >> path_with_query;
         
         // Parse path and query parameters
-        size_t query_pos = path_with_query.find('?');
-        if (query_pos != std::string::npos) {
+        if (size_t query_pos = path_with_query.find('?'); query_pos != std::string::npos) {
             request.path = path_with_query.substr(0, query_pos);
             std::string query = path_with_query.substr(query_pos + 1);
             request.query_params = parseQueryString(query);
@@ -240,8 +219,7 @@ HttpRequest HttpServer::parseRequest(const std::string& request_data) {
     
     // Parse headers
     while (std::getline(stream, line) && line != "\r") {
-        size_t colon_pos = line.find(':');
-        if (colon_pos != std::string::npos) {
+        if (size_t colon_pos = line.find(':'); colon_pos != std::string::npos) {
             std::string key = line.substr(0, colon_pos);
             std::string value = line.substr(colon_pos + 1);
             // Trim whitespace
@@ -293,11 +271,9 @@ std::string HttpServer::buildResponse(const HttpResponse& response) {
 HttpResponse HttpServer::handleRequest(const HttpRequest& request) {
     // Try to find exact route match
     std::string route_key = request.method + " " + request.path;
-    auto route_it = routes_.find(route_key);
-
     HttpResponse response;
 
-    if (route_it != routes_.end()) {
+    if (auto route_it = routes_.find(route_key); route_it != routes_.end()) {
         try {
             response = route_it->second(request);
         } catch (const std::exception& e) {
@@ -325,8 +301,7 @@ std::map<std::string, std::string> HttpServer::parseQueryString(const std::strin
     std::string pair;
     
     while (std::getline(stream, pair, '&')) {
-        size_t eq_pos = pair.find('=');
-        if (eq_pos != std::string::npos) {
+        if (size_t eq_pos = pair.find('='); eq_pos != std::string::npos) {
             std::string key = urlDecode(pair.substr(0, eq_pos));
             std::string value = urlDecode(pair.substr(eq_pos + 1));
             params[key] = value;
@@ -682,6 +657,13 @@ HttpResponse HttpServer::handleOpenAIChat(const HttpRequest& request) {
         response.body = error_json.dump();
     }
 
+    return response;
+}
+
+HttpResponse HttpServer::handleResponseOK(const HttpRequest& request) {
+    (void)request;
+    HttpResponse response;
+    response.status_code = 200;
     return response;
 }
 

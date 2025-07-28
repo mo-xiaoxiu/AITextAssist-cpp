@@ -36,6 +36,12 @@ struct HttpResponse {
     }
 };
 
+struct RouteConfig {
+    std::string method;
+    std::string path;
+    std::function<HttpResponse(const HttpRequest&)> handler;
+};
+
 // HTTP handler function type
 using HttpHandler = std::function<HttpResponse(const HttpRequest&)>;
 
@@ -80,6 +86,7 @@ private:
     HttpResponse handleApiConversationMessages(const HttpRequest& request);
     HttpResponse handleApiDeleteConversation(const HttpRequest& request);
     HttpResponse handleApiStatus(const HttpRequest& request);
+    HttpResponse handleResponseOK(const HttpRequest& request);
 
     // OpenAI-compatible handlers
     HttpResponse handleOpenAIChat(const HttpRequest& request);
